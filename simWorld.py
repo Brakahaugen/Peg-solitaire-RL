@@ -1,6 +1,7 @@
 from hexgames.hexGrid import HexGrid
 from hexgames.cell import Cell
 from hexgames.visualization import GameLoop
+import playable
 import random
 import numpy as np
 import time
@@ -8,48 +9,48 @@ import math
 
 
 class SimWorld:
-    def __init__(self, size, type):
+    def __init__(self, size, type, visualization, winReward, loseReward, initialPosition):
         self.hexGrid = HexGrid(size, type)
         self.size = size
         self.type = type
-        #Starting position
-        self.hexGrid.grid[2,2].detachPin()
-        
-        self.maxActions = 0
-        self.isFinished = False
-        self.pegCount = None
-        self.visualizationOn = False
+        self.winReward = winReward
+        self.loseReward = loseReward
+        self.initialPosition = initialPosition
+
+        self.visualizationOn = visualization
         if self.visualizationOn:
             self.gameLoop = GameLoop(self.hexGrid, self)
         self.length = self.getLength()
+        
+        self.resetGame()
 
-        # self.updateGame(None)
-        # self.gameLoop.updateGame(None, None)
-        # while not self.isFinished:
-        #     actions = self.getValidActions()
-        #     action = random.choice(actions)
-        #     print(actions)
-        #     self.updateGame(action)
 
     def resetGame(self):
         self.maxActions = 0
         self.isFinished = False
         self.pegCount = None
         self.hexGrid = HexGrid(self.size, self.type)
-        x = random.randrange(0, self.size - 1)
-        y = random.randrange(0, self.size - 1)
-        if self.type == "triangle":
-            if x == 0:
-                y = 0
-            else: 
-                y = random.randrange(0,x)
 
-        self.hexGrid.grid[x,y].detachPin()
+        self.hexGrid.grid[self.initialPosition[0], self.initialPosition[1]].detachPin()
+
+        """"
+            Random detacher
+        """
+        # x = random.randrange(0, self.size - 1)
+        # y = random.randrange(0, self.size - 1)
+        # if self.type == "triangle":
+        #     if x == 0:
+        #         y = 0
+        #     else: 
+        #         y = random.randrange(0,x)
+        # self.hexGrid.grid[x,y].detachPin()
+
+
         if self.visualizationOn:
             self.gameLoop.reset(self.hexGrid)
 
 
-    def updateGame(self, action):
+    def updateGame(self, action, policy_val):
         #Action is a jump from pin1 to pin to. [(x,y), (x,y)]
         if action != None:
             pin1 = self.hexGrid.grid[action[0][0], action[0][1]] 
@@ -59,35 +60,13 @@ class SimWorld:
             newPin = self.hexGrid.grid[pin2.getX() + x, pin2.getY() + y]
 
             if self.visualizationOn:
-                self.gameLoop.updateGame(pin1,pin2, newPin)
+                self.gameLoop.updateGame(pin1,pin2, newPin, policy_val)
             self.jumpOver(pin1,pin2)
             self.isFinished = self.checkGameFinished()
             if self.isFinished:
                 return self.createReward()        
         return 0
-
-
-    def createSimpleState(self):
-        #Creates a binary string, where each digit maps to a specific cell on the board.
-        state = ""
-        for x in range(0, self.hexGrid.grid.shape[0]):
-            for y in range(0, self.hexGrid.grid.shape[1]):
-                if self.hexGrid.grid[x,y] != None:
-                    state += str(int(not self.hexGrid.grid[x,y].isEmpty()))
-        return int(state, 2)
     
-    def getSimpleStateActions(self, state):
-        #State is a binary string where each position maps to a cell
-        for i in range(len(state)):
-            x = math.floor(i/self.size)
-            y = i
-
-
-
-                
-
-
-
 
     def jumpOver(self, pin1, pin2):
         if not pin1.hasNeighbour(pin2):
@@ -111,6 +90,25 @@ class SimWorld:
                 return "SUCCESS"
         return "EMPTY"
 
+
+    def createSimpleState(self):
+        #Creates a binary string, where each digit maps to a specific cell on the board.
+        #Returns the int representing that string
+        state = ""
+        for x in range(0, self.hexGrid.grid.shape[0]):
+            for y in range(0, self.hexGrid.grid.shape[1]):
+                if self.hexGrid.grid[x,y] != None:
+                    state += str(int(not self.hexGrid.grid[x,y].isEmpty()))
+        return int(state, 2)
+    
+
+    def getSimpleStateActions(self, state):
+        #State is a binary string where each position maps to a cell
+        for i in range(len(state)):
+            x = math.floor(i/self.size)
+            y = i
+
+
     def ableToJumpOver(self, pin1, pin2):
         if not pin1.hasNeighbour(pin2):
             return "NEIGHBOUR"
@@ -131,9 +129,8 @@ class SimWorld:
         return "EMPTY"
 
     def getValidActions(self):
+        actions = []        
 
-        actions = []
-        
         for x0 in range(0, self.hexGrid.grid.shape[0]):
             for y0 in range(0, self.hexGrid.grid.shape[1]):
                 if self.hexGrid.grid[x0,y0] != None:
@@ -156,18 +153,16 @@ class SimWorld:
                 for y in range(0, self.hexGrid.grid.shape[1]):
                     if self.hexGrid.grid[x,y] != None: 
                         count += int(not self.hexGrid.grid[x,y].isEmpty())
-
             self.pegCount = count
             return True
             #Kan også returnere count
-    
         return False
     
     def createReward(self):
         if self.pegCount == 1:
-            return 1000
+            return self.winReward
         else:
-            return -1000
+            return self.loseReward
 
 
     def getLength(self):
@@ -182,7 +177,3 @@ class SimWorld:
 if __name__ == "__main__":
     s = SimWorld(5, "triangle")
     print(s.length)
-    
-
-    # print(s.hexGrid)
-    # print(s.getValidActions())

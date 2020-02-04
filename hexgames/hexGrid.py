@@ -48,10 +48,3 @@ class HexGrid:
             return self.grid[i,j]
         else:
             return False
-        
-
-
-# if __name__ == "__main__":
-#     grid = HexGrid(size = 5, type = "triangle")
-#     print(grid.grid)
-#     print(grid.grid[3,3].neighbours)

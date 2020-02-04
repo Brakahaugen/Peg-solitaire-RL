@@ -1,11 +1,23 @@
+from __future__ import print_function
+import torch
 import math
 import sys
-import numpy as np
-from hexgames.hexGrid import HexGrid
-from simWorld import SimWorld
 import random
-import time
-import matplotlib.pyplot as plt
+
+
+class NeuralCritic:
+    def __init__(self, simWorld, gamma, lamda, alpha):
+        self.V = {} #V(s)
+        self.e = {} #e(s)
+        self.gamma = gamma
+        self.lamda = lamda
+        self.alpha = alpha
+        self.delta = 0
+        self.simWorld = simWorld
+        self.model = init_nn()
+
+    def init_nn(self):
+        ""
 
 
 

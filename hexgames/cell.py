@@ -29,16 +29,9 @@ class Cell:
             return True
         else:
             return False
-    # def hasCommonNeighbour(self, cell):
-    #     for n in self.neighbours:
-    #         if cell.hasNeighbour(n):
-    #             x = (self.x + cell.x) / 2
-    #             y = (self.y + cell.y) / 2
-    #             if not (((self.x - cell.x) > 2 or (self.x - cell.x) < -2) or ((self.y - cell.y) > 2 or (self.y - cell.y) < -2)):
 
-    #                 if math.floor(x) == math.ceil(x) and math.floor(y) == math.ceil(y):
-    #                     return [int(x), int(y)]
-    #     return None
+    def getNeighbours(self):
+        return self.neighbours
 
     def detachPin(self):
         self.empty = True
@@ -49,10 +42,5 @@ class Cell:
     def isEmpty(self):
         return self.empty
         
-
-
-
-        
-
     def __repr__(self):
-        return "(" + str(self.x) + "," + str(self.y) +  ")"
+        return "(" + str(self.x) + "," + str(self.y) +  ")" + str(self.empty)
