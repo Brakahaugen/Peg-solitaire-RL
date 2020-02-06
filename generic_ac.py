@@ -105,13 +105,13 @@ if __name__ == "__main__":
     winReward = 100, loseReward = -10,
     env = env,
     #BoardType and size:
-    boardSize = 5, boardType = "triangle", visualization = True, initial_position = [0,0]
+    boardSize = 7, boardType = "triangle", visualization = False, initial_position = [0,0]
     )
 
 
     epsilon_0 = player.epsilon
 
-    numEpisodes = 20000
+    numEpisodes = 2000
     test_every_x_episode = 50
     plot_and_save_every_x_episode = test_every_x_episode*10
 

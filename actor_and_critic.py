@@ -22,52 +22,61 @@ class NeuralCritic:
 
 
     def init_nn(self):
-        D_in = self.simWorld.num_cells
-        D0_out = math.floor(self.simWorld.num_cells/2)
-        D1_out = math.floor(D0_out/2)
+        L_1 = self.simWorld.num_cells
+        L_2 = int(L_1 / 2)
+        L_3 = int(L_2 / 2)
+        L_4 = int(L_3 / 2)
+        
         
         model = torch.nn.Sequential(
-            torch.nn.Linear(D_in, D0_out),
+            torch.nn.Linear(L_1, L_2),
             torch.nn.ReLU(),
-            torch.nn.Linear(D0_out, D1_out),
+            torch.nn.Linear(L_2, L_3),
+            torch.nn.ReLU(),
+            torch.nn.Linear(L_3, L_4),
+            torch.nn.ReLU(),
+            torch.nn.Linear(L_4, 1),
         )
+
         return model
 
-    def predict(self, x):
+    def loss_function(self, delta):
+        loss = torch.mean((delta)**2)
+        return loss
 
-        # y = r +γV(s')
-
+    def updateDelta(self, r, prevS, s):   
+   
+        prevS = self.pre_process_state(prevS)
+        s = self.pre_process_state(s)
         
-        y_pred = self.model(x)
-        print("y_pred: " + str(y_pred))
-        loss = self.loss_fn(y_pred, y)
-        print("loss: " + str(loss))
-        return y_pred
+        self.delta = r + self.gamma*self.model(s) - self.model(prevS)
 
+    def updateEligibility(self, s):
+        if not s in self.e:
+            self.e[s] = 0
+        self.e[s] = self.gamma*self.lamda*self.e[s]
 
-# class Net(nn.Module):
+    def updateValue(self, s):
+        if not s in self.e:
+            self.e[s] = 0
+        loss = self.loss_function(self.delta)
 
+        loss.backward(retain_graph=True)
 
+        # self.model(s) += self.alpha*self.delta*self.e[s]
+        return 0
+    
+    def getDelta(self):
+        return self.delta
 
-#     def forward(self, x):
-#         # Max pooling over a (2, 2) window
-#         x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
-#         # If the size is a square you can only specify a single number
-#         x = F.max_pool2d(F.relu(self.conv2(x)), 2)
-#         x = x.view(-1, self.num_flat_features(x))
-#         x = F.relu(self.fc1(x))
-#         x = F.relu(self.fc2(x))
-#         x = self.fc3(x)
-#         return x
+    def pre_process_state(self, state):
 
-#     def num_flat_features(self, x):
-#         size = x.size()[1:]  # all dimensions except the batch dimension
-#         num_features = 1
-#         for s in size:
-#             num_features *= s
-#         return num_features
+        tensor_state = torch.zeros([len(state)])
+        
+        for i in range(len(state)):
+            tensor_state[i] = int(state[i])
 
-
+        return tensor_state
 
 class Critic:
     def __init__(self, simWorld, gamma, lamda, alpha):

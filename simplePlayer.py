@@ -3,7 +3,7 @@ import sys
 import numpy as np
 from hexgames.hexGrid import HexGrid
 from simWorld import SimWorld
-from actor_and_critic import Actor, Critic
+from actor_and_critic import *
 import random
 
 import time
@@ -32,7 +32,7 @@ class SimplePlayer:
             self.simWorld = SimWorld(boardSize, boardType, visualization, winReward, loseReward, initial_position)
         else: 
             self.simWorld = env
-        self.critic = Critic(self.simWorld, gamma, lamda, alpha_c)
+        self.critic = NeuralCritic(self.simWorld, gamma, lamda, alpha_c)
         self.actor = Actor(self.simWorld, gamma, lamda, alpha_a)
 
         
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     #Rewards for winning and losing:
     winReward = 100, loseReward = -10,
     #BoardType and size:
-    boardSize = 5, boardType = "triangle", visualization = True, initial_position = [2,1]
+    boardSize = 5, boardType = "triangle", visualization = False, initial_position = [2,1]
     )
 
     epsilon_0 = player.epsilon
