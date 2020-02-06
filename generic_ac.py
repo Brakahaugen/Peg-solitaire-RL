@@ -2,7 +2,9 @@ from simplePlayer import SimplePlayer
 import time
 import matplotlib.pyplot as plt
 from timeit import default_timer as timer
-
+import collections
+import gc
+import gym
 
 
 def generic_actor_critic(SimplePlayer):
@@ -61,9 +63,8 @@ def run_policy_test(SimplePlayer):
     player.epsilon = 0
 
     while episode < numEpisodes:
-        player.simWorld.resetGame() 
+        player.simWorld.reset() 
         episode += 1
-
         while not player.simWorld.isFinished and len(player.simWorld.getValidActions()) != 0:
             prevA = player.choose_action()        
             reward = player.doAction(prevA)
@@ -71,25 +72,48 @@ def run_policy_test(SimplePlayer):
         if player.simWorld.pegCount == 1:
             wins += 1
 
+
     return wins/numEpisodes
 
+
+    observation_space = env.observation_space.shape[0]
+    action_space = env.action_space.n
+    dqn_solver = DQNSolver(observation_space, action_space)
+    while True:
+        state = env.reset()
+        state = np.reshape(state, [1, observation_space])
+        while True:
+            env.render()
+            action = dqn_solver.act(state)
+            state_next, reward, terminal, info = env.step(action)
+            reward = reward if not terminal else -reward
+            state_next = np.reshape(state_next, [1, observation_space])
+            dqn_solver.remember(state, action, reward, state_next, terminal)
+            dqn_solver.experience_replay()
+            state = state_next
+            if terminal:
+                break
         
 
 if __name__ == "__main__":
+
+    env = "peg-solitaire"
     player = SimplePlayer(
     #Hyperparameters for learning:
     gamma = 0.9, lamda = 0.9, alpha_a = 0.1, alpha_c = 0.1, epsilon = 0.5, 
     #Rewards for winning and losing:
     winReward = 100, loseReward = -10,
+    env = env,
     #BoardType and size:
-    boardSize = 5, boardType = "triangle", visualization = True, initial_position = [2,1]
+    boardSize = 5, boardType = "triangle", visualization = True, initial_position = [0,0]
     )
+
 
     epsilon_0 = player.epsilon
 
-    numEpisodes = 5000
-    test_every_x_episode = 5
-    plot_and_save_every_x_episode = 200
+    numEpisodes = 20000
+    test_every_x_episode = 50
+    plot_and_save_every_x_episode = test_every_x_episode*10
 
     episode = 0
     peg_sum = 0
@@ -98,11 +122,12 @@ if __name__ == "__main__":
     policy_wins = 0
     policy_games = 0
     policy_tests = {}
-    start = timer()
+    this_time = timer()
+    last_time = time.time()
+
 
     while episode < numEpisodes:
-        
-        player.simWorld.resetGame() 
+        player.simWorld.reset() 
 
         episode += 1
         s_a_list =[]
@@ -120,6 +145,13 @@ if __name__ == "__main__":
             print("we are now at episode: " + str(episode))
             print("Our current policy has a winrate of: " + str(policy_test))
 
+            this_time = time.time()
+            print("Time since last step: " + str(this_time - last_time))
+            last_time = this_time
+
+            gc.collect()
+
+
             # episode_results.append(peg_sum/test_every_x_episode)
             peg_sum = 0
 
@@ -128,9 +160,14 @@ if __name__ == "__main__":
 
             x = []
             y = []
-            for key, value in policy_tests.items():
+            od = collections.OrderedDict(sorted(policy_tests.items()))
+
+            for key, value in od.items():
+                print(key, value)
                 x.append(key)
                 y.append(value)
+
+
 
             fig = plt.figure()
             plt.title('On policy learning rate')

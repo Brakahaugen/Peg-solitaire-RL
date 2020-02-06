@@ -11,21 +11,24 @@ import math
 class SimWorld:
     def __init__(self, size, type, visualization, winReward, loseReward, initialPosition):
         self.hexGrid = HexGrid(size, type)
-        self.size = size
         self.type = type
+        self.size = size
+        self.num_cells = self.calculate_num_cells()
         self.winReward = winReward
         self.loseReward = loseReward
         self.initialPosition = initialPosition
+        self.pin1, self.pin2, self.newPin, self.policy_val = None, None, None, None
 
         self.visualizationOn = visualization
         if self.visualizationOn:
             self.gameLoop = GameLoop(self.hexGrid, self)
+        else: self.gameLoop = None
         self.length = self.getLength()
         
-        self.resetGame()
+        self.reset()
 
 
-    def resetGame(self):
+    def reset(self):
         self.maxActions = 0
         self.isFinished = False
         self.pegCount = None
@@ -50,7 +53,7 @@ class SimWorld:
             self.gameLoop.reset(self.hexGrid)
 
 
-    def updateGame(self, action, policy_val):
+    def step(self, action, policy_val = 0):
         #Action is a jump from pin1 to pin to. [(x,y), (x,y)]
         if action != None:
             pin1 = self.hexGrid.grid[action[0][0], action[0][1]] 
@@ -60,12 +63,20 @@ class SimWorld:
             newPin = self.hexGrid.grid[pin2.getX() + x, pin2.getY() + y]
 
             if self.visualizationOn:
-                self.gameLoop.updateGame(pin1,pin2, newPin, policy_val)
+                self.pin1 = pin1
+                self.pin2 = pin2
+                self.newPin = newPin
+                self.policy_val = policy_val
             self.jumpOver(pin1,pin2)
             self.isFinished = self.checkGameFinished()
             if self.isFinished:
                 return self.createReward()        
         return 0
+    
+    def render(self, mode="human"):
+        if self.gameLoop != None:
+            self.gameLoop.updateGame(self.pin1, self.pin2, self.newPin, self.policy_val)
+
     
 
     def jumpOver(self, pin1, pin2):
@@ -99,7 +110,7 @@ class SimWorld:
             for y in range(0, self.hexGrid.grid.shape[1]):
                 if self.hexGrid.grid[x,y] != None:
                     state += str(int(not self.hexGrid.grid[x,y].isEmpty()))
-        return int(state, 2)
+        return state
     
 
     def getSimpleStateActions(self, state):
@@ -174,6 +185,15 @@ class SimWorld:
             length = self.size**2
         return length
 
+    def calculate_num_cells(self):
+        num_cells = 0
+        if self.type == "triangle":
+            for i in range(self.size):
+                num_cells += i + 1
+        else:
+            num_cells = self.size**2
+        return num_cells
+
 if __name__ == "__main__":
-    s = SimWorld(5, "triangle")
+    s = SimWorld(5, "triangle", True, 100, -10, [1,1])
     print(s.length)

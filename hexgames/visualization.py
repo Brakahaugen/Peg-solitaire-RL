@@ -3,6 +3,7 @@ import random
 import sys
 import math
 import numpy as np
+import time
 
 # define a main function
 class GameLoop:
@@ -25,12 +26,14 @@ class GameLoop:
         self.pinsToCircles = {}
         self.selectedCircle = None
         self.goneCircle = None
+        self.jumpCircle = None
         self.newCircle = None
         self.toggleX = self.WIDTH - 100
         self.toggleY = 100
         self.toggleColor = self.YELLOW
         self.toggle = False
-
+        self.prev_toggle = False
+        self.time = []
             
         pygame.init()
         pygame.font.init() 
@@ -54,21 +57,19 @@ class GameLoop:
             neighbours = pin.getNeighbours()
 
             for n in neighbours:
-                if n not in visited_circles:
-                    new_circle = self.pinsToCircles[n]
+                new_circle = self.pinsToCircles[n]
+                if new_circle in visited_circles:
+                    continue
+                else:
                     pygame.draw.line(self.screen, self.GREY, circle, new_circle, self.LINE_WIDTH)
             visited_circles.append(circle)
             
-        self.drawCircles(grid)
-
     def drawCircles(self, grid):
         for circle in self.circles:
-            if circle == self.selectedCircle:
-                pygame.draw.circle(self.screen, self.RED, circle, self.HOLE_RADIUS)
-            elif self.circlesToPins[circle].isEmpty():
+            # if circle == self.selectedCircle or circle == self.goneCircle or circle == self.jumpCircle:
+            #     continue
+            if self.circlesToPins[circle].isEmpty():
                 pygame.draw.circle(self.screen, self.GREY, circle, self.HOLE_RADIUS)
-            elif circle == self.goneCircle:
-                pygame.draw.circle(self.screen, self.YELLOW, circle, self.HOLE_RADIUS)
             else:
                 pygame.draw.circle(self.screen, self.BLUE, circle, self.HOLE_RADIUS)
 
@@ -110,38 +111,91 @@ class GameLoop:
                     self.circlesToPins[circle] = cell
                     self.pinsToCircles[cell] = circle
                     self.circles.append(circle)
+                    
+        self.screen.fill(self.BACKGROUND_COLOR)  
+        self.drawGrid(self.hexGrid.grid)
+        self.drawCircles(self.hexGrid)
+
+    def animateJump(self, i, max):
+            if i < max/10:
+                pygame.draw.circle(self.screen, self.GREY, self.goneCircle, self.HOLE_RADIUS)
+                pygame.draw.circle(self.screen, self.BLUE, self.selectedCircle, self.HOLE_RADIUS)
+                pygame.draw.circle(self.screen, self.BLUE, self.jumpCircle, self.HOLE_RADIUS)
+            elif i < 3*max/10:
+                pygame.draw.circle(self.screen, self.GREY, self.goneCircle, self.HOLE_RADIUS)
+                pygame.draw.circle(self.screen, self.RED, self.selectedCircle, self.HOLE_RADIUS)
+                pygame.draw.circle(self.screen, self.BLUE, self.jumpCircle, self.HOLE_RADIUS)
+            elif i < 5*max/10:
+                pygame.draw.circle(self.screen, self.YELLOW, self.goneCircle, self.HOLE_RADIUS)
+                pygame.draw.circle(self.screen, self.RED, self.selectedCircle, self.HOLE_RADIUS)
+                pygame.draw.circle(self.screen, self.BLUE, self.jumpCircle, self.HOLE_RADIUS)
+            # elif i < 9*max/10: 
+            #     # i = i - 5*max/10
+            #     # max = max - 6*max/10
+
+
+            #     # pygame.draw.circle(self.screen, self.YELLOW, self.goneCircle, self.HOLE_RADIUS)
+            #     # pygame.draw.circle(self.screen, self.GREY, self.selectedCircle, self.HOLE_RADIUS)
+            #     # pygame.draw.circle(self.screen, self.BLUE, self.jumpCircle, self.HOLE_RADIUS)
+
+            #     # x = self.selectedCircle[0] + ((self.goneCircle[0] - self.selectedCircle[0]) * i/max)
+            #     # y = self.selectedCircle[1] + ((self.goneCircle[1] - self.selectedCircle[1]) * i/max)
+                
+            #     # pygame.draw.circle(self.screen, self.RED, (int(x),int(y)), self.HOLE_RADIUS)
+
+            else: 
+                pygame.draw.circle(self.screen, self.BLUE, self.goneCircle, self.HOLE_RADIUS)
+                pygame.draw.circle(self.screen, self.GREY, self.selectedCircle, self.HOLE_RADIUS)
+                pygame.draw.circle(self.screen, self.GREY, self.jumpCircle, self.HOLE_RADIUS)
+        
+    
 
 
     def updateGame(self, startPin, jumpPin, newPin, policy_val):
+        start = time.time()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONUP:
+                self.detectMouse()
+        if self.toggle:
+            self.prev_toggle = True
+            end = time.time()
 
+            if (end-start) > 0.00001:
+                self.time.append(end-start)
+            return   
+        # print("148")
         i = 0
-        max = 3
-        self.selectedCircle = None
-        self.goneCircle =None
+        max = 10
+        self.jumpCircle = self.pinsToCircles[jumpPin] #Is the pin being jumped over
+        self.goneCircle = self.pinsToCircles[newPin] #Is the pin end jump
+        self.selectedCircle = self.pinsToCircles[startPin] #Is the pin start jump
+
+
         while i < max:
-            if not self.toggle:    
-                self.clock.tick(max)
+            # print("157")
+            if not self.toggle:  
+                if self.prev_toggle:
+                    self.drawCircles(self.hexGrid)
+                self.prev_toggle = False  
+                self.clock.tick(20)
 
             i += 1   
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    sys.exit()
-                if event.type == pygame.MOUSEBUTTONUP:
-                    self.detectMouse()
-            if self.toggle:
-                return    
+ 
 
-            if i >= max/3:
-                self.selectedCircle = self.pinsToCircles[startPin]
-            if i >= 2*max/3:
-                self.selectedCircle = self.pinsToCircles[newPin]
-                self.goneCircle = self.pinsToCircles[startPin]
+            # print("174")
+            self.animateJump(i, max)
+            # print("176")
 
-            self.screen.fill(self.BACKGROUND_COLOR)        
-            self.drawGrid(self.hexGrid.grid)
+
+            # self.drawCircles(self.hexGrid.grid)
+            # print("180")
+
             pygame.draw.circle(self.screen, self.toggleColor, (self.toggleX, self.toggleY), self.HOLE_RADIUS)
-            textsurface = self.myfont.render(str(policy_val), False, (0, 0, 0))
-            self.screen.blit(textsurface,(15,15))
+            # textsurface = self.myfont.render(str(policy_val), False, (0, 0, 0))
+            # self.screen.blit(textsurface,(15,15))
+            # print("185")
             pygame.display.update()
-
+            # print("187")
 
