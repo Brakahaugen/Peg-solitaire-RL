@@ -108,7 +108,6 @@ class Critic:
         self.delta = 0
         self.simWorld = simWorld
         # self.initDic()
-        print("-------------USING NORMAL CRITIC---------------")
 
     def initDic(self):
         #Maxlength 31, which is a size of max 7 given triangle, and max 5 given diamond.

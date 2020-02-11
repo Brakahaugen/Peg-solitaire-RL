@@ -9,24 +9,6 @@ import gc
 import gym
 import numpy as np
 
-if __name__ == "__main__":
-
-    #Setting up the objects. Specify your hyperparameters here.
-    env = SimWorld(size = 4, type = "diamond", visualization = False, winReward = 1, loseReward = -0.1, initialPosition = [2,1])
-    
-    critic = Critic(simWorld = env, gamma = 0.9, lamda = 0.9, alpha = 0.01)
-
-    neuralCritic = NeuralCritic(simWorld = env, gamma = 0.9, lamda = 0.9, alpha = 0.01, layers = [15, 20, 30, 5, 1])
-
-    actor = Actor(simWorld = env, gamma = 0.9, lamda = 0.9, alpha = 0.01)
-    
-    agent = Agent(env, actor, neuralCritic, epsilon = 0.5)
-
-    init_training(agent,
-    numEpisodes = 50,
-    test_every_x_episode = None,
-    plot_and_save_every_x_episode = None
-    )
 
 def init_training(agent,
     numEpisodes = 200,
@@ -208,3 +190,21 @@ def save_training_plot(
     plt.close(fig)    
 
 
+if __name__ == "__main__":
+
+    #Setting up the objects. Specify your hyperparameters here.
+    env = SimWorld(size = 4, type = "diamond", visualization = False, winReward = 1, loseReward = -0.1, initialPosition = [2,1])
+    
+    critic = Critic(simWorld = env, gamma = 0.9, lamda = 0.9, alpha = 0.01)
+
+    neuralCritic = NeuralCritic(simWorld = env, gamma = 0.9, lamda = 0.9, alpha = 0.01, layers = [15, 20, 30, 5, 1])
+
+    actor = Actor(simWorld = env, gamma = 0.9, lamda = 0.9, alpha = 0.01)
+    
+    agent = Agent(env, actor, neuralCritic, epsilon = 0.5)
+
+    init_training(agent,
+    numEpisodes = 50,
+    test_every_x_episode = None,
+    plot_and_save_every_x_episode = None
+    )
