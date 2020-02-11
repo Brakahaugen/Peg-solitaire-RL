@@ -34,22 +34,32 @@ class SimWorld:
         self.pegCount = None
         self.hexGrid = HexGrid(self.size, self.type)
 
-        self.hexGrid.grid[self.initialPosition[0], self.initialPosition[1]].detachPin()
+        if self.initialPosition != None:
+            if isinstance(self.initialPosition[0], int):
+                self.hexGrid.grid[self.initialPosition[0], self.initialPosition[1]].detachPin()
+            else: 
+                for p in self.initialPosition:
+                    self.hexGrid.grid[p[0], p[1]].detachPin()
 
-        """"
-            Random detacher
-        """
-        # x = random.randrange(0, self.size - 1)
-        # y = random.randrange(0, self.size - 1)
-        # if self.type == "triangle":
-        #     if x == 0:
-        #         y = 0
-        #     else: 
-        #         y = random.randrange(0,x)
-        # self.hexGrid.grid[x,y].detachPin()
+
+
+        else:
+            """"
+                Random detacher
+            """
+            x = random.randrange(0, self.size - 1)
+            y = random.randrange(0, self.size - 1)
+            if self.type == "triangle":
+                if x == 0:
+                    y = 0
+                else: 
+                    y = random.randrange(0,x)
+            self.hexGrid.grid[x,y].detachPin()
 
 
         if self.visualizationOn:
+            if self.gameLoop == None:
+                self.gameLoop =GameLoop(self.hexGrid, self)
             self.gameLoop.reset(self.hexGrid)
 
 

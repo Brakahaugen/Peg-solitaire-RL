@@ -2,14 +2,17 @@ from __future__ import print_function
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import torch.optim as optim
+import torch.tensor
+import numpy as np
 import math
 import sys
 import random
+import time
 
 
 class NeuralCritic:
-    def __init__(self, simWorld, gamma, lamda, alpha):
+    def __init__(self, simWorld, gamma, lamda, alpha, layers):
         self.V = {} #V(s)
         self.e = {} #e(s)
         self.gamma = gamma
@@ -17,26 +20,25 @@ class NeuralCritic:
         self.alpha = alpha
         self.delta = 0
         self.simWorld = simWorld
-        self.model = self.init_nn()
+        self.model = self.init_nn(layers)
         self.loss_fn = torch.nn.MSELoss(reduction='sum')
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.alpha)
+
+        self.e_list = []
+        for params in self.model.parameters():
+            self.e_list.append(torch.tensor(np.zeros(params.shape)))
 
 
-    def init_nn(self):
-        L_1 = self.simWorld.num_cells
-        L_2 = int(L_1 / 2)
-        L_3 = int(L_2 / 2)
-        L_4 = int(L_3 / 2)
+    def init_nn(self, layers):
         
+        modules = []
+        modules.append(torch.nn.Linear(self.simWorld.num_cells, layers[0]))
         
-        model = torch.nn.Sequential(
-            torch.nn.Linear(L_1, L_2),
-            torch.nn.ReLU(),
-            torch.nn.Linear(L_2, L_3),
-            torch.nn.ReLU(),
-            torch.nn.Linear(L_3, L_4),
-            torch.nn.ReLU(),
-            torch.nn.Linear(L_4, 1),
-        )
+        for i in range(len(layers)-1):
+            modules.append(torch.nn.Linear(layers[i], layers[i+1]))
+            modules.append(torch.nn.ReLU())
+            
+        model = torch.nn.Sequential(*modules)
 
         return model
 
@@ -48,22 +50,40 @@ class NeuralCritic:
    
         prevS = self.pre_process_state(prevS)
         s = self.pre_process_state(s)
-        
         self.delta = r + self.gamma*self.model(s) - self.model(prevS)
 
     def updateEligibility(self, s):
-        if not s in self.e:
-            self.e[s] = 0
-        self.e[s] = self.gamma*self.lamda*self.e[s]
+        i = 1
+        # if not s in self.e:
+        #     self.e[s] = 0
+        # self.e[s] = self.gamma*self.lamda*self.e[s]
 
     def updateValue(self, s):
-        if not s in self.e:
-            self.e[s] = 0
+        # if not s in self.e:
+        #     self.e[s] = 0
+
+        self.optimizer.zero_grad()
         loss = self.loss_function(self.delta)
-
         loss.backward(retain_graph=True)
-
-        # self.model(s) += self.alpha*self.delta*self.e[s]
+        
+        with torch.no_grad():
+            temp = []
+            j = 0
+            for w in self.model.parameters():
+                temp.append(w)
+                # print(w.grad)
+                for i in range(len(w)):
+                    # print(w.shape)
+                    # print(w.grad[i].shape)
+                    # print(self.e_list[j][i].shape)
+                    # print(self.delta)
+                    self.e_list[j][i] +=  w.grad[i]
+                    w.grad[i] *= self.e_list[j][i]
+                    
+                j += 1
+            # print("--------------------")
+            # print(temp[0][0][0])
+            self.optimizer.step()
         return 0
     
     def getDelta(self):
@@ -88,6 +108,7 @@ class Critic:
         self.delta = 0
         self.simWorld = simWorld
         # self.initDic()
+        print("-------------USING NORMAL CRITIC---------------")
 
     def initDic(self):
         #Maxlength 31, which is a size of max 7 given triangle, and max 5 given diamond.
@@ -107,7 +128,6 @@ class Critic:
         if not prevS in self.V:
             self.V[prevS] = random.random()/10
         self.delta = r + self.gamma*self.V[s] - self.V[prevS]
-        # print(self.delta)
 
     def updateEligibility(self, s):
         if not s in self.e:
@@ -119,7 +139,7 @@ class Critic:
             self.V[s] = 0 #random.random()/10
         if not s in self.e:
             self.e[s] = 0
-                
+
         self.V[s] += self.alpha*self.delta*self.e[s]
         return self.alpha*self.delta*self.e[s]
     
