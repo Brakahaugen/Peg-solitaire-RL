@@ -17,7 +17,7 @@ def init_training(agent,
 
     # Setting up a test periodically if frequency is not specified
     if test_every_x_episode == None:
-        test_every_x_episode = numEpisodes / 100
+        test_every_x_episode = numEpisodes / 10
     if plot_and_save_every_x_episode == None:
         plot_and_save_every_x_episode = numEpisodes
 
@@ -35,7 +35,6 @@ def init_training(agent,
 
 
     while episode < numEpisodes:
-
         episode += 1
 
         #Resets the world at every new episode
@@ -46,6 +45,12 @@ def init_training(agent,
 
         #Runs the main algorithm (The "repeat for each step of the episode ")
         generic_actor_critic(agent)
+
+        if agent.simWorld.pegCount == 1:
+            print("_________")
+            print("win")
+            print("________")
+
 
         #Logging the results
         peg_sum += (agent.simWorld.pegCount)
@@ -65,6 +70,8 @@ def init_training(agent,
 
             gc.collect()
             peg_sum = 0
+            if policy_test > 0:
+                return
 
         if episode % plot_and_save_every_x_episode == 0:
             save_step += 1
@@ -78,6 +85,9 @@ def init_training(agent,
 
 
 def generic_actor_critic(agent):
+
+    #Resetting eligibility traces. Only necessary for neural critic.
+    agent.critic.resetEligibility()
 
     #Init s and a
     prevS = agent.simWorld.createSimpleState()
@@ -105,7 +115,9 @@ def generic_actor_critic(agent):
         agent.critic.updateDelta(reward, prevS, s_)
         
         #5. Update the eligibility traces for the critic:
-        agent.critic.e[prevS] = 1
+            #Note: this is to be ignored in neuralCritic.
+        if agent.critic.type == "table":
+            agent.critic.e[prevS] = 1
 
         #6. For each state action in episode:
         for s_a in s_a_list:
@@ -116,6 +128,7 @@ def generic_actor_critic(agent):
             delta_value = agent.critic.updateValue(s)
 
             #b) change eligibility of s
+                #WNote: In neuralCritic this is done in the backpropagation 
             agent.critic.updateEligibility(s)
             
             #c) update policy of s_a
@@ -129,10 +142,9 @@ def generic_actor_critic(agent):
         prevA = a_
         s_a_list.append([prevS, prevA])
 
-def run_policy_test(Agent):
+def run_policy_test(agent):
     numEpisodes = 1
     episode = 0
-    s_a_list =[]
     wins = 0
     
     agent.epsilon = 0
@@ -143,6 +155,8 @@ def run_policy_test(Agent):
         while not agent.simWorld.isFinished and len(agent.simWorld.getValidActions()) != 0:
             prevA = agent.choose_action()        
             reward = agent.doAction(prevA)
+
+
 
         if agent.simWorld.pegCount == 1:
             wins += 1
@@ -163,7 +177,6 @@ def save_training_plot(
     od = collections.OrderedDict(sorted(policy_tests.items()))
 
     for key, value in od.items():
-        print(key, value)
         x.append(key)
         y.append(value)
     
@@ -186,25 +199,55 @@ def save_training_plot(
     plt.plot(episode_results)
     name = "plots/[" + "]final_learnPlot" + str(save_step) + str(criticor) + ".png"
     plt.savefig(name)
-    plt.show(fig)
+    # plt.show(fig)
     plt.close(fig)    
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  
+    sum = 0
+    train_rounds = 0
+    while True:
+        # Setting up the objects. Specify your hyperparameters here.
+        env = SimWorld(
+            size = 5, 
+            type = "triangle", 
+            visualization = False,
+            fps = 5, 
+            winReward = 100, 
+            loseReward = -1, 
+            initialPosition = [2,1])
+        
+        critic = Critic(
+            simWorld = env, 
+            type = "table",
+            gamma = 0.9, 
+            lamda = 0.9, 
+            alpha = 0.1)
 
-    #Setting up the objects. Specify your hyperparameters here.
-    env = SimWorld(size = 4, type = "diamond", visualization = False, winReward = 1, loseReward = -0.1, initialPosition = [2,1])
-    
-    critic = Critic(simWorld = env, gamma = 0.9, lamda = 0.9, alpha = 0.01)
+        neuralCritic = NeuralCritic(
+            simWorld = env, 
+            type = "neural",
+            gamma = 0.9, 
+            lamda = 0.9, 
+            alpha = 0.001, 
+            layers = [15, 5, 1])
 
-    neuralCritic = NeuralCritic(simWorld = env, gamma = 0.9, lamda = 0.9, alpha = 0.01, layers = [15, 20, 30, 5, 1])
+        actor = Actor(
+            simWorld = env, 
+            gamma = 0.99, 
+            lamda = 0.99, 
+            alpha = 0.1)
+        
+        agent = Agent(env, actor, neuralCritic, epsilon = 0.5)
 
-    actor = Actor(simWorld = env, gamma = 0.9, lamda = 0.9, alpha = 0.01)
-    
-    agent = Agent(env, actor, neuralCritic, epsilon = 0.5)
+        init_training(agent,
+        numEpisodes = 400,
+        test_every_x_episode = None,
+        plot_and_save_every_x_episode = None
+        )
 
-    init_training(agent,
-    numEpisodes = 50,
-    test_every_x_episode = None,
-    plot_and_save_every_x_episode = None
-    )
+
+
+        sum += run_policy_test(agent)
+        train_rounds += 1
+        print("sum: {} rounds: {}".format(sum, train_rounds))

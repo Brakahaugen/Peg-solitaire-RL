@@ -31,10 +31,7 @@ class Agent:
         if not (self.simWorld.createSimpleState(), action) in self.actor.policy:
             self.actor.policy[self.simWorld.createSimpleState(), action] = random.random()/10
 
-        # try:
-        #     fail
-        #     observation, reward, done, info = self.simWorld.step(act)
-        # except:
+
         reward = self.simWorld.step(act, self.actor.policy[self.simWorld.createSimpleState(), action])
         start = time.time()
         self.simWorld.render()

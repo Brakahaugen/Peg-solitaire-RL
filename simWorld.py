@@ -1,7 +1,7 @@
 from hexgames.hexGrid import HexGrid
 from hexgames.cell import Cell
 from hexgames.visualization import GameLoop
-import playable
+# import playable
 import random
 import numpy as np
 import time
@@ -9,10 +9,11 @@ import math
 
 
 class SimWorld:
-    def __init__(self, size, type, visualization, winReward, loseReward, initialPosition):
+    def __init__(self, size, type, visualization, fps, winReward, loseReward, initialPosition):
         self.hexGrid = HexGrid(size, type)
         self.type = type
         self.size = size
+        self.fps = fps
         self.num_cells = self.calculate_num_cells()
         self.winReward = winReward
         self.loseReward = loseReward
@@ -21,7 +22,7 @@ class SimWorld:
 
         self.visualizationOn = visualization
         if self.visualizationOn:
-            self.gameLoop = GameLoop(self.hexGrid, self)
+            self.gameLoop = GameLoop(self.hexGrid, self, self.fps)
         else: self.gameLoop = None
         self.length = self.getLength()
         
@@ -59,12 +60,13 @@ class SimWorld:
 
         if self.visualizationOn:
             if self.gameLoop == None:
-                self.gameLoop =GameLoop(self.hexGrid, self)
+                self.gameLoop =GameLoop(self.hexGrid, self, self.fps)
             self.gameLoop.reset(self.hexGrid)
 
 
     def step(self, action, policy_val = 0):
         #Action is a jump from pin1 to pin to. [(x,y), (x,y)]
+
         if action != None:
             pin1 = self.hexGrid.grid[action[0][0], action[0][1]] 
             pin2 = self.hexGrid.grid[action[1][0], action[1][1]] 

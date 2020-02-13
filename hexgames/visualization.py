@@ -4,10 +4,11 @@ import sys
 import math
 import numpy as np
 import time
+# import slider
 
 # define a main function
 class GameLoop:
-    def __init__(self, hexGrid, simWorld):
+    def __init__(self, hexGrid, simWorld, startFPS):
         self.simWorld = simWorld
         self.hexGrid = hexGrid
 
@@ -34,6 +35,19 @@ class GameLoop:
         self.toggle = False
         self.prev_toggle = False
         self.time = []
+
+        self.max_fps = 100
+        self.fps = startFPS
+
+        self.handleWIDTH = 10
+        self.handleHEIGHT = 50
+        self.handleMin = 20
+        self.handleMax = 200
+        self.handleY = 50
+        self.handleX = (startFPS/self.max_fps) * (self.handleMax - self.handleMin) + self.handleMin
+
+
+        
             
         pygame.init()
         pygame.font.init() 
@@ -90,6 +104,20 @@ class GameLoop:
             self.drawGrid(self.hexGrid.grid)
             pygame.draw.circle(self.screen, self.toggleColor, (self.toggleX, self.toggleY), self.HOLE_RADIUS)
             pygame.display.update()
+        elif (abs(self.handleY - y0) < self.handleHEIGHT) and x0 > self.handleMin and x0 < self.handleMax:
+            #Drag the handlebar
+            self.handleX = x0
+            #ADJUST SPEED
+            self.fps = ((self.handleX - self.handleMin) / (self.handleMax-self.handleMin) * self.max_fps) + 0.5
+
+            #Draw the new position
+            self.reset(self.hexGrid)
+            pygame.draw.line(self.screen, self.GREY, (self.handleMin, self.handleY), (self.handleMax, self.handleY), self.LINE_WIDTH)
+            pygame.draw.rect(self.screen, self.YELLOW, pygame.Rect(self.handleX,self.handleY - self.handleHEIGHT/2, self.handleWIDTH, self.handleHEIGHT))
+            pygame.display.update()
+
+        
+
 
     def reset(self, hexGrid):
         self.hexGrid = hexGrid
@@ -115,6 +143,7 @@ class GameLoop:
         self.screen.fill(self.BACKGROUND_COLOR)  
         self.drawGrid(self.hexGrid.grid)
         self.drawCircles(self.hexGrid)
+        time.sleep(1)
 
     def animateJump(self, i, max):
             if i < max/10:
@@ -152,6 +181,7 @@ class GameLoop:
 
 
     def updateGame(self, startPin, jumpPin, newPin, policy_val):
+        
         start = time.time()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -179,7 +209,7 @@ class GameLoop:
                 if self.prev_toggle:
                     self.drawCircles(self.hexGrid)
                 self.prev_toggle = False  
-                self.clock.tick(20)
+                self.clock.tick(self.fps)
 
             i += 1   
  
@@ -193,6 +223,12 @@ class GameLoop:
             # print("180")
 
             pygame.draw.circle(self.screen, self.toggleColor, (self.toggleX, self.toggleY), self.HOLE_RADIUS)
+            pygame.draw.line(self.screen, self.GREY, (self.handleMin, self.handleY), (self.handleMax, self.handleY), self.LINE_WIDTH)
+            pygame.draw.rect(self.screen, self.YELLOW, pygame.Rect(self.handleX,self.handleY - self.handleHEIGHT/2, self.handleWIDTH, self.handleHEIGHT))
+
+            # (20, 50), (200, 50)
+            
+            
             # textsurface = self.myfont.render(str(policy_val), False, (0, 0, 0))
             # self.screen.blit(textsurface,(15,15))
             # print("185")

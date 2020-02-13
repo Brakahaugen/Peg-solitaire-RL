@@ -9,21 +9,23 @@ import math
 import sys
 import random
 import time
+import copy
 
 
 class NeuralCritic:
-    def __init__(self, simWorld, gamma, lamda, alpha, layers):
+    def __init__(self, simWorld, type, gamma, lamda, alpha, layers):
         self.V = {} #V(s)
         self.e = {} #e(s)
+        self.type = type
         self.gamma = gamma
         self.lamda = lamda
         self.alpha = alpha
         self.delta = 0
         self.simWorld = simWorld
         self.model = self.init_nn(layers)
-        self.loss_fn = torch.nn.MSELoss(reduction='sum')
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.alpha)
 
+        #initing a list where we store our eligibility traces.
         self.e_list = []
         for params in self.model.parameters():
             self.e_list.append(torch.tensor(np.zeros(params.shape)))
@@ -35,22 +37,45 @@ class NeuralCritic:
         modules.append(torch.nn.Linear(self.simWorld.num_cells, layers[0]))
         
         for i in range(len(layers)-1):
-            modules.append(torch.nn.Linear(layers[i], layers[i+1]))
             modules.append(torch.nn.ReLU())
+            modules.append(torch.nn.Linear(layers[i], layers[i+1]))
+            if i == (len(layers)-2):
+                pass
+                # modules.append(torch.nn.ReLU())
+              
+
             
         model = torch.nn.Sequential(*modules)
-
+        print(model)
+        time.sleep(1)
         return model
 
     def loss_function(self, delta):
+        # TD-error delta squared is the error
         loss = torch.mean((delta)**2)
+        # print(delta)
         return loss
+    
+    def resetEligibility(self):
+        self.e_list = []
+        for params in self.model.parameters():
+            self.e_list.append(torch.tensor(np.zeros(params.shape)))
+
 
     def updateDelta(self, r, prevS, s):   
    
         prevS = self.pre_process_state(prevS)
         s = self.pre_process_state(s)
-        self.delta = r + self.gamma*self.model(s) - self.model(prevS)
+        target = r + self.gamma*self.model(s)
+        # if r != 0:
+        #     target = r
+        # print("target: " + str(target))
+        # print("now vs before")
+        # print(self.model(s).data[0])
+        # print(self.model(prevS).data[0])
+        # print("target: {} value: {}".format(target, self.model(prevS)))
+
+        self.delta = target - self.model(prevS)
 
     def updateEligibility(self, s):
         i = 1
@@ -59,31 +84,29 @@ class NeuralCritic:
         # self.e[s] = self.gamma*self.lamda*self.e[s]
 
     def updateValue(self, s):
-        # if not s in self.e:
-        #     self.e[s] = 0
-
+        
+        #Resetting gradients
         self.optimizer.zero_grad()
+
+        #Calculating loss based on TD error. 
         loss = self.loss_function(self.delta)
         loss.backward(retain_graph=True)
+
         
+        # for each layer in our model we update our weights based on the two update rules defined in the pdf.
         with torch.no_grad():
-            temp = []
             j = 0
             for w in self.model.parameters():
-                temp.append(w)
-                # print(w.grad)
                 for i in range(len(w)):
-                    # print(w.shape)
-                    # print(w.grad[i].shape)
-                    # print(self.e_list[j][i].shape)
-                    # print(self.delta)
-                    self.e_list[j][i] +=  w.grad[i]
-                    w.grad[i] *= self.e_list[j][i]
                     
+                    self.e_list[j][i] = self.gamma * self.lamda * self.e_list[j][i] + w.grad[i]
+                    
+                    w.grad[i] *= self.e_list[j][i]
+                      
                 j += 1
-            # print("--------------------")
-            # print(temp[0][0][0])
+                
             self.optimizer.step()
+
         return 0
     
     def getDelta(self):
@@ -99,9 +122,10 @@ class NeuralCritic:
         return tensor_state
 
 class Critic:
-    def __init__(self, simWorld, gamma, lamda, alpha):
+    def __init__(self, simWorld, type, gamma, lamda, alpha):
         self.V = {} #V(s)
         self.e = {} #e(s)
+        self.type = type
         self.gamma = gamma
         self.lamda = lamda
         self.alpha = alpha
@@ -116,9 +140,11 @@ class Critic:
             self.e[i] = 0
         
     def resetEligibility(self):
+        #Not necessary to do anything here ass all eligibilities are set to 1 when they are visited.
+        return
         #Maxlength 31, which is a size of max 7 given triangle, and max 5 given diamond.
-        for i in range(2**self.simWorld.length):
-            self.e[i] = 0
+        # for i in range(2**self.simWorld.length):
+        #     self.e[i] = 0
         
 
     def updateDelta(self, r, prevS, s):
